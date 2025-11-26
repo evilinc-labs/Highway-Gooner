@@ -1,0 +1,26 @@
+pluginManagement {
+  repositories {
+    maven { url = "https://maven.fabricmc.net/" }
+    gradlePluginPortal()
+    mavenCentral()
+  }
+  plugins {
+    id "fabric-loom" version "1.11-SNAPSHOT" // Gradle 8.14+ / JDK 21
+  }
+}
+
+dependencyResolutionManagement {
+  repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+  repositories {
+    maven { url = "https://maven.fabricmc.net/" }
+    maven { url = "https://libraries.minecraft.net/" } 
+    maven { url = "https://maven.guardsquare.com" } 
+    mavenCentral()
+    maven { name = "Meteor Dev Releases";  url = "https://maven.meteordev.org/releases" }
+    maven { name = "Meteor Dev Snapshots"; url = "https://maven.meteordev.org/snapshots" }
+    // (Loom will add Mojang/Fabric internals itself)
+  }
+}
+
+rootProject.name = "Evil-Gooner"
+include("addon")

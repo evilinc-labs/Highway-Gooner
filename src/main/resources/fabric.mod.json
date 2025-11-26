@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "evil-highway-helper",
+  "version": "${version}",
+  "name": "Evil Inc Toolkit Addon",
+  "description": "Evil Inc's Toolkit addon for Meteor 1.21.5.",
+  "authors": [
+    "Evil Inc."
+  ],
+  "contact": {
+    "repo": "https://github.com/FIXMELATERNIGGER"
+  },
+  "icon": "assets/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "meteor": [
+      "Evil.group.addon.Evil_HWGooner"
+    ]
+  },
+  "mixins": [
+    "Evil.group.mixins.json"
+  ],
+  "custom": {
+    "meteor-client:color": "225,25,25"
+  },
+  "depends": {
+    "java": ">=21",
+    "minecraft": ["${mc_version}"],
+    "meteor-client": "*",
+    "baritone": ">=1.13.1"
+  }
+}
