@@ -1,8 +1,8 @@
 <div align="center">
     <img src="/src/main/resources/assets/icon.png" alt="logo" width="10%"/>
-    <h1>Evil Inc Griefing Addon</h1>
+    <h1>Evil Inc's Highway Gooner</h1>
     <p>
-        2b2t specific Meteor Client module to assist in daily nefarious activities.
+        Clogs highways with custom patterns, now with AutoWalk and diagonal support.
     </p>
 </div>
 
@@ -24,7 +24,7 @@
 - Highway Gooner (Wallbuilder)
 
 ## Main Features
-- Can goon in all 8 directions within up to a 7 block diamater before moving.
+- Can goon in all 8 directions within up to a 7 block diamater before moving.  TBA: Custom movement for widened highways.
 - Utilized legacy rotations to place quickly and efficiently.  This may break in future 2b2t updates.
 - Uses AirPlace if regular block placement failed.
 
