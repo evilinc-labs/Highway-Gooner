@@ -30,4 +30,3 @@
 
 ## How to use
 - Set **ViaFabric** to 1.20.5-1.20.6.
-- Carry shulkers with obsidian to replenish from, or hold more in your enderchest **(Shulker Restocking has not been implemented yet)**.
