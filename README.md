@@ -30,3 +30,4 @@
 
 ## How to use
 - Set **ViaFabric** to 1.20.5-1.20.6.
+- For diagonals, face slightly to the right of where you'd like to begin.
