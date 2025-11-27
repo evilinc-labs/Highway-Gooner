@@ -255,7 +255,7 @@ public class WallHighwayGooner extends Module {
     private boolean[][] pattern5 = new boolean[5][7];
 
     public WallHighwayGooner() {
-        super(Evil_HWGooner.CATEGORY, "WallHighwayGooner", "5x7 wall builder with pattern switching, diagonal building, Baritone, and access control.");
+        super(Evil_HWGooner.CATEGORY, "WallHighwayGooner", "5x7 wall builder with pattern switching, diagonal building, Baritone.");
 
         // initialize patterns
         for (int i = 0; i < 5; i++) {
