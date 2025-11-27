@@ -1,0 +1,102 @@
+plugins {
+    id "fabric-loom"
+    id "maven-publish"
+}
+
+/* ---- Basic Metadata ---- */
+group = project.maven_group
+version = project.mod_version
+
+base {
+    archivesName = project.hasProperty("archives_base_name") ? project.archives_base_name : "addon"
+}
+
+tasks.withType(Jar) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+/* ---- Repositories ---- */
+repositories {
+    maven { url = "https://maven.fabricmc.net/" }
+    mavenCentral()
+    maven { name = "Meteor Dev Releases";  url = "https://maven.meteordev.org/releases" }
+    maven { name = "Meteor Dev Snapshots"; url = "https://maven.meteordev.org/snapshots" }
+    flatDir { dirs 'libs' }
+}
+
+/* ---- Loom ---- */
+loom {
+    runs {
+        client {
+            runDir "run"
+        }
+    }
+    mixin {
+        defaultRefmapName = "evil-highway-helper.refmap.json"
+    }
+}
+
+/* ---- Source Sets ---- */
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java']
+        }
+        resources {
+            srcDirs = ['src/main/resources']
+        }
+    }
+}
+
+/* ---- Dependencies ---- */
+dependencies {
+    minecraft         "com.mojang:minecraft:${project.minecraft_version}"
+    mappings          "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "meteordevelopment:meteor-client:${project.meteor_version}"
+
+    // optional baritone api
+    modCompileOnly files("libs/baritone-api-fabric-1.14.0.jar")
+}
+
+/* ---- Prepare run/mods directory ---- */
+def runModsDir = file("${project.projectDir}/run/mods")
+tasks.register("prepareRunMods", Copy) {
+    from("libs/baritone-standalone-fabric-1.14.0.jar",
+         "libs/baritone-api-fabric-1.14.0.jar")
+    into(runModsDir)
+}
+tasks.named("runClient") { dependsOn("prepareRunMods") }
+
+/* ---- Resource Version Expansion ---- */
+tasks.named("processResources", ProcessResources).configure {
+    inputs.properties("version": project.version, "mc_version": project.minecraft_version)
+    filesMatching("fabric.mod.json") {
+        expand("version": project.version, "mc_version": project.minecraft_version)
+    }
+}
+
+/* ---- Jar Metadata ---- */
+tasks.named("jar", Jar).configure { Jar jarTask ->
+    from("LICENSE") {
+        rename { lic -> "${lic}_${jarTask.archiveBaseName.get()}" }
+    }
+}
+
+/* ---- Java 21 ---- */
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+    options.release = 21
+}
+
+/* ---- Disable Tests ---- */
+tasks.configureEach { t ->
+    if (t.name.toLowerCase().contains("test")) t.enabled = false
+}
+gradle.startParameter.excludedTaskNames += ["test", "check"]
