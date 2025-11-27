@@ -1,5 +1,6 @@
 package Evil.group.addon;
 
+import Evil.group.addon.modules.Wither;
 import meteordevelopment.meteorclient.addons.GithubRepo;
 import meteordevelopment.meteorclient.addons.MeteorAddon;
 import meteordevelopment.meteorclient.systems.modules.Category;
@@ -18,6 +19,7 @@ public class Evil_HWGooner extends MeteorAddon {
     @Override
     public void onInitialize() {
         Modules.get().add(new WallHighwayGooner());
+        Modules.get().add(new Wither());
     }
 
     @Override
