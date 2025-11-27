@@ -2,6 +2,7 @@
 build/
 out/
 classes/
+bin/
 
 # === Gradle ===
 .gradle/
