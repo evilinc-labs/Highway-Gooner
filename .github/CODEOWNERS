@@ -1,0 +1,13 @@
+# === Default owners for everything in the repo ===
+* @PoseidonsCave @King-Geedoraah
+
+# Source files
+src/** @PoseidonsCave @King-Geedoraah
+
+# Gradle & build config
+gradle/** @PoseidonsCave @King-Geedoraah
+build.gradle @PoseidonsCave @King-Geedoraah
+settings.gradle @PoseidonsCave @King-Geedoraah
+
+# GitHub workflow and config files
+.github/** @PoseidonsCave @King-Geedoraah
