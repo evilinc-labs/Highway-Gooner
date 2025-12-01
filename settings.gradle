@@ -14,7 +14,6 @@ dependencyResolutionManagement {
   repositories {
     maven { url = "https://maven.fabricmc.net/" }
     maven { url = "https://libraries.minecraft.net/" } 
-    maven { url = "https://maven.guardsquare.com" } 
     mavenCentral()
     maven { name = "Meteor Dev Releases";  url = "https://maven.meteordev.org/releases" }
     maven { name = "Meteor Dev Snapshots"; url = "https://maven.meteordev.org/snapshots" }
