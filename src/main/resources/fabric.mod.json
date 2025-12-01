@@ -3,7 +3,7 @@
   "id": "evil-highway-helper",
   "version": "${version}",
   "name": "Evil Inc Toolkit Addon",
-  "description": "Evil Inc's Toolkit addon for Meteor 1.21.5.",
+  "description": "Evil Inc's Toolkit addon for Meteor 1.21.8.",
   "authors": [
     "Evil Inc."
   ],
@@ -27,6 +27,6 @@
     "java": ">=21",
     "minecraft": ["${mc_version}"],
     "meteor-client": "*",
-    "baritone": ">=1.13.1"
+    "baritone": ">=1.15.0"
   }
 }

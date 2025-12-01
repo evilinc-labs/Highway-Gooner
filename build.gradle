@@ -56,14 +56,14 @@ dependencies {
     modImplementation "meteordevelopment:meteor-client:${project.meteor_version}"
 
     // optional baritone api
-    modCompileOnly files("libs/baritone-api-fabric-1.14.0.jar")
+    modCompileOnly files("libs/baritone-api-fabric-1.15.0.jar")
 }
 
 /* ---- Prepare run/mods directory ---- */
 def runModsDir = file("${project.projectDir}/run/mods")
 tasks.register("prepareRunMods", Copy) {
-    from("libs/baritone-standalone-fabric-1.14.0.jar",
-         "libs/baritone-api-fabric-1.14.0.jar")
+    from("libs/baritone-standalone-fabric-1.15.0.jar",
+         "libs/baritone-api-fabric-1.15.0.jar")
     into(runModsDir)
 }
 tasks.named("runClient") { dependsOn("prepareRunMods") }
