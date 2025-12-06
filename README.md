@@ -22,6 +22,7 @@
 
 ## Module
 - Highway Gooner (Wallbuilder)
+- Wither (Leonetic's AutoWither)
 
 ## Main Features
 - Can goon in all 8 directions within up to a 7 block diamater before moving.  TBA: Custom movement for widened highways.
