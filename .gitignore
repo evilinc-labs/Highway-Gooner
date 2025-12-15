@@ -20,7 +20,7 @@ gradle-app.setting
 hs_err_pid*
 replay_pid*
 
-# === Packaging outputs (optional; keep jars OUT of source control) ===
+# === Packaging outputs ===
 *.jar
 *.war
 *.ear
@@ -35,3 +35,7 @@ logs/
 # === OS junk ===
 .DS_Store
 Thumbs.db
+
+# === I forgot this lmao ===
+!gradle/wrapper/gradle-wrapper.jar
+
