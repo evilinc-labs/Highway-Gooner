@@ -6,6 +6,9 @@ import Evil.group.addon.Evil_HWGooner;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.events.world.TickEvent;
+import meteordevelopment.meteorclient.utils.player.InvUtils;
+import net.minecraft.item.ItemStack;
+import java.util.Objects;
 import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.item.BlockItem;
@@ -24,7 +27,9 @@ import meteordevelopment.meteorclient.events.render.Render3DEvent;
 import meteordevelopment.meteorclient.renderer.ShapeMode;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 
 public class Wither extends Module {
@@ -45,6 +50,54 @@ public class Wither extends Module {
             .name("silent-notifications")
             .description("Remove notifications")
             .defaultValue(false)
+            .build()
+    );
+
+    // --- Material management ---
+    private final Setting<Boolean> autoReplenish = sgGeneral.add(new BoolSetting.Builder()
+            .name("auto-replenish")
+            .description("If enabled, tries to refill the pinned hotbar slots from inventory when low.")
+            .defaultValue(true)
+            .build()
+    );
+
+    private final Setting<Integer> soulSandHotbarSlot = sgGeneral.add(new IntSetting.Builder()
+            .name("soul-sand-hotbar-slot")
+            .description("Pinned hotbar slot (1–9) to use for Soul Sand when placing withers.")
+            .defaultValue(1)
+            .min(1)
+            .max(9)
+            .sliderMax(9)
+            .build()
+    );
+
+    private final Setting<Integer> skullHotbarSlot = sgGeneral.add(new IntSetting.Builder()
+            .name("wither-skull-hotbar-slot")
+            .description("Pinned hotbar slot (1–9) to use for Wither Skeleton Skulls when placing withers.")
+            .defaultValue(2)
+            .min(1)
+            .max(9)
+            .sliderMax(9)
+            .build()
+    );
+
+    private final Setting<Integer> soulSandThreshold = sgGeneral.add(new IntSetting.Builder()
+            .name("soul-sand-threshold")
+            .description("Minimum Soul Sand required (hotbar + inventory). If below, we won't place a wither.")
+            .defaultValue(16)
+            .min(4)
+            .max(64)
+            .sliderMax(64)
+            .build()
+    );
+
+    private final Setting<Integer> skullThreshold = sgGeneral.add(new IntSetting.Builder()
+            .name("wither-skull-threshold")
+            .description("Minimum Wither Skeleton Skulls required (hotbar + inventory). If below, we won't place a wither.")
+            .defaultValue(6)
+            .min(3)
+            .max(64)
+            .sliderMax(64)
             .build()
     );
 
@@ -114,6 +167,19 @@ public class Wither extends Module {
         }
 
         preparePatten();
+
+        // Guardrails: don't place if we don't have the materials ready (and stackable).
+        if (!ensureMaterialsOrError()) {
+            toggle();
+            return;
+        }
+
+        // Guardrails: don't place if the structure can't actually form/spawn.
+        if (!canPlaceWholeWither()) {
+            warning("Wither pattern obstructed/unsupported");
+            toggle();
+            return;
+        }
 
         if (steps.isEmpty()) {
             warning("No valid build position found");
@@ -230,14 +296,13 @@ public class Wither extends Module {
 
         PlayerInventory inv = mc.player.getInventory();
 
-        int slot = findSlotWithBlock(inv, step.block);
-        if (slot == -1) {
-            warning("Missing block: " + step.block.getName().getString());
-            return false;
-        }
-        if (slot < 0 || slot > 8) {
-            warning("Block " + step.block.getName().getString() + " is not in hotbar.");
-            return false;
+        int slot = (step.block == Blocks.SOUL_SAND) ? soulSandSlotIdx() : skullSlotIdx();
+
+        // Ensure the pinned slot actually has the needed block ready right now.
+        if (step.block == Blocks.SOUL_SAND) {
+            if (!ensurePinnedSlotAndThreshold(Blocks.SOUL_SAND, slot, 1, "Soul Sand")) return false;
+        } else if (step.block == Blocks.WITHER_SKELETON_SKULL) {
+            if (!ensurePinnedSlotAndThreshold(Blocks.WITHER_SKELETON_SKULL, slot, 1, "Wither Skeleton Skull")) return false;
         }
 
         inv.setSelectedSlot(slot);
@@ -286,7 +351,198 @@ public class Wither extends Module {
         return true;
     }
 
+
+
+
+    // === Material guardrails / hotbar pinning ===
+    private int soulSandSlotIdx() {
+        return Math.max(0, Math.min(8, soulSandHotbarSlot.get() - 1));
+    }
+
+    private int skullSlotIdx() {
+        return Math.max(0, Math.min(8, skullHotbarSlot.get() - 1));
+    }
+
+    private boolean ensureMaterialsOrError() {
+        if (mc.player == null) return false;
+
+        // Make sure our pinned slots contain the right items (or can be moved there),
+        // and that we have enough total to justify placing a wither.
+        boolean okSand = ensurePinnedSlotAndThreshold(
+                Blocks.SOUL_SAND, soulSandSlotIdx(), soulSandThreshold.get(), "Soul Sand");
+        boolean okSkull = ensurePinnedSlotAndThreshold(
+                Blocks.WITHER_SKELETON_SKULL, skullSlotIdx(), skullThreshold.get(), "Wither Skeleton Skull");
+
+        return okSand && okSkull;
+    }
+
+    private boolean ensurePinnedSlotAndThreshold(Block block, int pinnedSlot, int threshold, String prettyName) {
+        PlayerInventory inv = mc.player.getInventory();
+
+        // If pinned slot doesn't hold the correct item, try to move the largest matching stack into it.
+        ItemStack pinned = inv.getStack(pinnedSlot);
+        if (pinned.isEmpty() || !(pinned.getItem() instanceof BlockItem) || ((BlockItem) pinned.getItem()).getBlock() != block) {
+            int best = findLargestStackSlot(inv, block);
+            if (best == -1) {
+                error("Missing " + prettyName + " (need at least " + threshold + ").");
+                return false;
+            }
+            // Move it into the pinned hotbar slot.
+            InvUtils.move().from(best).toHotbar(pinnedSlot);
+            pinned = inv.getStack(pinnedSlot);
+        }
+
+        // Compatibility key: stacking breaks when custom-named / component-different items exist.
+        // Treat "custom name" as the thing that makes stacks incompatible.
+        String key = stackKey(pinned);
+
+        int totalAny = countTotal(inv, block, null);
+        int totalCompatible = countTotal(inv, block, key);
+
+        if (totalCompatible < threshold) {
+            if (totalAny >= threshold) {
+                error("Not enough stackable " + prettyName + " for pinned slot (items may be renamed / non-stackable).");
+            } else {
+                error("Not enough " + prettyName + " to place a wither (need " + threshold + ").");
+            }
+            return false;
+        }
+
+        // If pinned slot is low, optionally top it up from inventory with compatible stacks.
+        if (autoReplenish.get()) {
+            topUpPinnedSlot(inv, block, pinnedSlot, key, threshold);
+        }
+
+        return true;
+    }
+
+    private void topUpPinnedSlot(PlayerInventory inv, Block block, int pinnedSlot, String key, int targetCount) {
+        ItemStack pinned = inv.getStack(pinnedSlot);
+        int count = pinned.getCount();
+
+        if (count >= targetCount) return;
+
+        // Pull compatible stacks into the pinned slot until targetCount or run out.
+        // Ignore incompatible stacks to avoid swapping/overwriting the pinned stack.
+        for (int i = 0; i < inv.size(); i++) {
+            if (i == pinnedSlot) continue;
+
+            ItemStack s = inv.getStack(i);
+            if (s.isEmpty()) continue;
+            if (!(s.getItem() instanceof BlockItem bi) || bi.getBlock() != block) continue;
+
+            if (!Objects.equals(stackKey(s), key)) continue;
+
+            InvUtils.move().from(i).toHotbar(pinnedSlot);
+
+            // Re-read pinned after move
+            pinned = inv.getStack(pinnedSlot);
+            count = pinned.getCount();
+            if (count >= targetCount) return;
+        }
+    }
+
+    private int findLargestStackSlot(PlayerInventory inv, Block block) {
+        int best = -1;
+        int bestCount = 0;
+        for (int i = 0; i < inv.size(); i++) {
+            ItemStack s = inv.getStack(i);
+            if (s.isEmpty()) continue;
+            if (!(s.getItem() instanceof BlockItem bi) || bi.getBlock() != block) continue;
+
+            if (s.getCount() > bestCount) {
+                bestCount = s.getCount();
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    private int countTotal(PlayerInventory inv, Block block, String keyOrNull) {
+        int total = 0;
+        for (int i = 0; i < inv.size(); i++) {
+            ItemStack s = inv.getStack(i);
+            if (s.isEmpty()) continue;
+            if (!(s.getItem() instanceof BlockItem bi) || bi.getBlock() != block) continue;
+
+            if (keyOrNull != null && !Objects.equals(stackKey(s), keyOrNull)) continue;
+
+            total += s.getCount();
+        }
+        return total;
+    }
+
+    private String stackKey(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return "";
+
+        // Mapping-safe compatibility key:
+        // renamed items naturally diverge here, default items stay identical
+        return stack.getName().getString();
+    }
+
+
+//  do not place anything unless the structure can actually be completed.
+//  Keeps the fast airplace logic, but avoids wasting blocks when the area is obstructed.
+private boolean canPlaceWholeWither() {
+    if (mc.world == null) return false;
+    if (steps.size() < 7) return false; // expected 4 soul sand + 3 skulls
+
+    // Pattern layout as built in preparePatten()
+    BlockPos stem       = steps.get(0).pos;
+    BlockPos centerBody = steps.get(1).pos;
+    BlockPos leftArm    = steps.get(2).pos;
+    BlockPos rightArm   = steps.get(3).pos;
+
+    BlockPos headLeft   = steps.get(4).pos;
+    BlockPos headCenter = steps.get(5).pos;
+    BlockPos headRight  = steps.get(6).pos;
+
+    // Infer "left/right" direction vectors from the arms (works regardless of facing)
+    BlockPos leftDelta  = leftArm.subtract(centerBody);
+    BlockPos rightDelta = rightArm.subtract(centerBody);
+
+    // two stem-side blocks must be air so the wither can form
+    BlockPos stemSideLeft  = stem.add(leftDelta.getX(), 0, leftDelta.getZ());
+    BlockPos stemSideRight = stem.add(rightDelta.getX(), 0, rightDelta.getZ());
+
+    if (!isAirOnly(stemSideLeft))  return false;
+    if (!isAirOnly(stemSideRight)) return false;
+
+    // Soul sand positions (stem + T bar)
+    BlockPos[] soul = new BlockPos[] { stem, centerBody, leftArm, rightArm };
+    for (BlockPos pos : soul) {
+        // allow re-running on already-placed soul sand, otherwise require replaceable
+        if (!isReplaceableOrSame(pos, Blocks.SOUL_SAND)) return false;
+    }
+
+    // Skull targets: must be replaceable (or already skull), and must have soul sand directly below
+    BlockPos[] skulls = new BlockPos[] { headLeft, headCenter, headRight };
+    for (BlockPos pos : skulls) {
+        if (!isReplaceableOrSame(pos, Blocks.WITHER_SKELETON_SKULL)) return false;
+
+        BlockPos below = pos.down();
+        Block belowBlock = mc.world.getBlockState(below).getBlock();
+        // if we haven't placed it yet, it still must be placeable as soul sand
+        if (belowBlock != Blocks.SOUL_SAND && !isReplaceableOrSame(below, Blocks.SOUL_SAND)) return false;
+    }
+
+    return true;
+}
+
+private boolean isAirOnly(BlockPos pos) {
+    if (mc.world == null) return false;
+    return mc.world.getBlockState(pos).isAir();
+}
+
+private boolean isReplaceableOrSame(BlockPos pos, Block expected) {
+    if (mc.world == null) return false;
+    Block current = mc.world.getBlockState(pos).getBlock();
+    if (current == expected) return true;
+    return mc.world.getBlockState(pos).isReplaceable();
+}
+
     // find slot with required block (must be in hotbar because im too lazy for good inventory management)
+    // depreacated;;;;;
     private int findSlotWithBlock(PlayerInventory inv, Block block) {
         // search hotbar only (0–8)
         for (int i = 0; i < 9; i++) {
